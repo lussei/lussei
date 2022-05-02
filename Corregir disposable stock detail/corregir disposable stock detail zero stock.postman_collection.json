@@ -1,0 +1,166 @@
+{
+	"info": {
+		"_postman_id": "8aed7d0e-84ac-4f28-9892-acaa5b2ca5b8",
+		"name": "corregir disposable stock detail zero stock",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "disposable_stock_detail",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Your test name\", function () {",
+							"    quantity = 0; ",
+							"    ids = Array();",
+							"    var data = pm.response.json().results;",
+							"    data.each(d=>{",
+							"        quantity += d.quantity;",
+							"        ids.push({id:d.id,quantity:d.quantity});",
+							"    });",
+							"    pm.globals.set(\"disposables_ids\", ids)",
+							"    pm.globals.set(\"quantity_disposal\", quantity)",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{disposal_scope}}/disposable_stock_detail/search?warehouse_id={{warehouse_id}}&inventory_id={{inventory_id}}&",
+					"host": [
+						"{{disposal_scope}}"
+					],
+					"path": [
+						"disposable_stock_detail",
+						"search"
+					],
+					"query": [
+						{
+							"key": "available_disposal_date_from",
+							"value": "2021-04-01",
+							"disabled": true
+						},
+						{
+							"key": "available_disposal_date_to",
+							"value": "2022-04-01",
+							"disabled": true
+						},
+						{
+							"key": "warehouse_id",
+							"value": "{{warehouse_id}}"
+						},
+						{
+							"key": "inventory_id",
+							"value": "{{inventory_id}}"
+						},
+						{
+							"key": null,
+							"value": null
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "stock",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Your test name\", function () {",
+							"    var log = \"\"; ",
+							"    warehouse_id = pm.variables.get(\"warehouse_id\");",
+							"    inventory_id = pm.variables.get(\"inventory_id\");",
+							"    quantity_stock = 0; ",
+							"    quantity_disposal = pm.globals.get(\"quantity_disposal\");",
+							"",
+							"    var data = pm.response.json().locations;",
+							"    if(data != null && data.length > 0){",
+							"        data.each(d=>{",
+							"            if(d.location_id = warehouse_id && d.in_location_processing != null && d.in_location_processing.reserved_by_disposal != null){",
+							"                quantity_stock += d.in_location_processing.reserved_by_disposal;",
+							"            }",
+							"        });",
+							"    }",
+							"    if(quantity_stock != quantity_disposal && quantity_stock == 0){",
+							"        disposal_scope = pm.variables.get(\"disposal_scope\")",
+							"        ids = pm.globals.get(\"disposables_ids\");",
+							"        if(ids.length> 0){",
+							"            ids.each(id=>{",
+							"                pm.sendRequest({",
+							"                    header: {",
+							"                        'Content-Type': 'application/json',",
+							"                        'x-auth-token':'e7f499877f2917d125e8e7cbd639c9f61b84957d2e2031a8710b67f0c6e91f0b'",
+							"                    },",
+							"                    url: 'http://production.fbm-disposal.melifrontends.com/disposable_stock_detail/' + id.id,",
+							"                    method: 'PUT',",
+							"                    body: {",
+							"                        mode: 'raw',",
+							"                        raw: JSON.stringify({ quantity: id.quantity * -1 })",
+							"                    }",
+							"                }, function (err, res) {",
+							"                        if(err == null && res.code == 200){",
+							"                            pm.variables.set(\"log\", `processed,id,${id.id}`)",
+							"                        }else{",
+							"                            pm.variables.set(\"log\", `not processed error,id,${id.id}`)",
+							"                            console.error(err);",
+							"                        }",
+							"                    });",
+							"            });",
+							"        }else{",
+							"            pm.variables.set(\"log\", `no details for ,id,-`)",
+							"            ",
+							"        }",
+							"    }else{",
+							"        pm.variables.set(\"log\", `not processable,id,-`)            ",
+							"    }",
+							"",
+							"    log = pm.variables.get(\"log\") +`,${inventory_id},warehouse,${warehouse_id},quantity_disposal, ${quantity_disposal},quantity_stock, ${quantity_stock},disposable_stock_detail_fix`",
+							"    //SEND LOGS",
+							"    pm.sendRequest({",
+							"    header: {",
+							"        'Content-Type': 'application/json',",
+							"        'x-auth-token':'f290e58a47dbaf56827c7b49590c513bf95a83764eece19784db2ccc82283c7a'",
+							"    },",
+							"    url: 'http://localhost:3000/',",
+							"    method: 'POST',",
+							"    body: {",
+							"        mode: 'raw',",
+							"        raw: JSON.stringify({ ",
+							"            log: log",
+							"        })",
+							"    }",
+							"});",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{stock_scope}}/seller_products/{{inventory_id}}/stock",
+					"host": [
+						"{{stock_scope}}"
+					],
+					"path": [
+						"seller_products",
+						"{{inventory_id}}",
+						"stock"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
